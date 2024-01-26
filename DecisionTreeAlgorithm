@@ -1,0 +1,154 @@
+import random
+import math
+
+
+class Node:
+    def __init__(self, label=None, gini_index_split=0.0):
+        self.gini_index_split = gini_index_split
+        self.label = label
+        self.children = []
+
+    def create_leaf(self, class_label):
+        return Node(label=class_label)
+
+    def add_leaf_to_tree(self,  D):
+        class_label = max(set(row[-1] for row in D), key=list(row[-1] for row in D).count)
+        leaf_node = self.create_leaf(class_label)
+        self.children.append(leaf_node)
+        
+
+    def GenerateDecisionTree(self, D, attribute_list, max_depth=None):  
+        n = Node(label="Root") 
+        self.grow_trees_for_outcomes(D, attribute_list, n, max_depth=max_depth, depth=0)
+        return n  
+
+    def attribute_list(D, ATTRIBUTE_LIST):
+        if not ATTRIBUTE_LIST:
+            majority_class = max(set(tuple(row) for row in D), key=D.count)
+            return {"node_type": "leaf", "label": majority_class}
+            
+    def calculate_gini_index(self, D):
+        class_count = {}
+        tuples = len(D)
+
+        for data_object in D:
+            class_label = data_object[-1]
+            if class_label not in class_count:
+                class_count[class_label] = 1
+            else:
+                class_count[class_label] += 1
+
+        #p = {class_label: count / tuples for class_label, count in class_count.items()}
+
+        gini_index = 1.0
+        for count in class_count.values():
+            p = count / tuples
+            gini_index -= p ** 2
+
+        return gini_index
+
+    def calculate_gini_index_split(self, D, attribute_index, threshold):
+        #get the amount of attributes and classes in the training_set
+        total_samples = len(D)
+        gini_index_split = 0.0
+
+        #Split the dataset into two subsets
+        #You did not include the 2nd subset, that was included
+        subset1 = [row for row in D if float(row[attribute_index]) <= threshold]
+        subset2 = [row for row in D if float(row[attribute_index]) > threshold]
+
+        #Repeat the same process for the 2nd subset
+        gini1 = self.calculate_gini_index(subset1)  
+        gini2 = self.calculate_gini_index(subset2)
+
+        #calculate gini
+        subset1gini = (len(subset1) / total_samples)
+        subset2gini = (len(subset2) / total_samples)
+
+        #Long math below, easy to understand
+        S1 = subset1gini * gini1
+        S2 = subset2gini * gini2
+
+        gini_index_split = S1 + S2
+
+        #This will be used as our splitting_criterion
+        return gini_index_split
+
+    def remove_attribute(self, attribute_list, splitting_attribute):
+        attribute_list.remove(splitting_attribute)
+
+
+#FYI -- ***INSERT grow_trees_for_outcomes HERE*****
+
+    def grow_trees_for_outcomes(self, D, attribute_list, parent_node,  max_depth=None, depth=0):
+        # Assuming outcomes are the class labels and are present in the last column of each tuple
+            unique_outcomes = set(data_object[-1] for data_object in D)
+            
+
+            for outcome_j in unique_outcomes:
+                Dj = [data_object for data_object in D if data_object[-1] == outcome_j]  # (11) Dj be the set of data tuples in D satisfying outcome j
+
+                if max_depth is not None and depth >= max_depth:
+                    # Stop growing the tree and create a leaf node with the majority class
+                    majority_class = max(set(tuple(row) for row in D), key=D.count)
+                    leaf_node = parent_node.create_leaf(majority_class)
+                    parent_node.children.append(leaf_node)
+                    return
+                
+                elif not Dj:  # (12) if Dj is empty
+                    majority_class = max(set(tuple(row) for row in D), key=D.count)
+                    subtree_node = parent_node.create_leaf(majority_class)
+                    subtree_node.gini_index_split = self.calculate_gini_index(D)
+                    parent_node.children.append(subtree_node)  # (13) attach a leaf labeled with the majority class to node N
+                else:
+                    subtree_node = Node(label=outcome_j)
+                    subtree_node.gini_index_split = self.calculate_gini_index(D)
+                    parent_node.children.append(subtree_node)
+                    self.grow_trees_for_outcomes(Dj, attribute_list, subtree_node, max_depth=max_depth, depth=depth + 1)
+                    
+            
+
+    def print_tree_info(self, tree, indent=0):
+            if tree is not None:
+                if tree.label is not None:
+                    print("  " * indent + f"Node: {tree.label}, Gini Index: {tree.gini_index_split}")
+                else:
+                    print("  " * indent + f"Leaf: {tree.label}")
+
+                for child in tree.children:
+                    self.print_tree_info(child, indent + 1)
+
+
+def main():
+    D = []
+    ATTRIBUTE_LIST = []
+
+    with open("C:\\Users\\Aja58\\OneDrive\\Documents\\car.csv") as file:
+        header = file.readline().strip().split(',')
+        ATTRIBUTE_LIST = header
+
+        for line in file:
+            values = line.strip().split(',')
+            values = [float(val) if val.replace('.', '', 1).isdigit() else val for val in values] #Convert strings to float
+            D.append(values)
+           
+        #Split dataset into a 70% training and 30% testing
+        split_ratio = 0.7
+
+        random.shuffle(D)
+        split_index = int(len(D) * split_ratio)
+        training_set = D[:split_index]
+        testing_set = D[split_index:]
+
+    D = training_set
+           
+    generate_tree = Node().GenerateDecisionTree(D, ATTRIBUTE_LIST, max_depth=4)
+
+    def print_tree_info(tree, indent=0):
+        tree.print_tree_info(tree, indent=indent)
+
+    print_tree_info(generate_tree)
+    
+
+if __name__ == "__main__":
+    main()
